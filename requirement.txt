@@ -1,0 +1,11 @@
+asyncpg
+databases[postgresql]
+fastapi
+SQLAlchemy
+uvicorn
+httpx
+passlib[bcrypt]
+python-jose
+pydantic-settings>=2.0.0
+email-validator
+python-dotenv
