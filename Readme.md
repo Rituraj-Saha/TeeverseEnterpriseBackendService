@@ -6,3 +6,9 @@
 ## Activate Venv
 
 ## uvicorn app.main:app --reload
+
+**start the env**
+
+````$env:ENVIRONMENT="development"
+uvicorn app.authService.main:app --reload```
+````
