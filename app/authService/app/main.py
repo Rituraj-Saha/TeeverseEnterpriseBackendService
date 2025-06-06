@@ -1,0 +1,25 @@
+from app.config import settings
+from fastapi import FastAPI
+from app.routes import user
+from contextlib import asynccontextmanager
+from app.database import engine, Base
+
+
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Run before the application starts
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    yield  # Yield control to the app
+    
+    # Optionally, add any shutdown logic here
+
+app = FastAPI(lifespan=lifespan)
+
+
+print("Running in:", settings.ENVIRONMENT)
+print("Using DB:", settings.DATABASE_URL)
+app.include_router(user.router, prefix="/api/v1")
