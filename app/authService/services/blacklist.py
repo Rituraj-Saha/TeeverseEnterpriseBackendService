@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.models.blacklist import BlacklistedToken
-from app.schemas.blacklist import BlacklistTokenCreate
+from app.authService.models.blacklist import BlacklistedToken
+from app.authService.schemas.blacklist import BlacklistTokenCreate
 from datetime import datetime
 
 

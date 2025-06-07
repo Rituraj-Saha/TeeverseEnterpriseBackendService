@@ -1,6 +1,6 @@
 from app.config import settings
 from fastapi import FastAPI
-from app.routes import user
+from app.authService.routes import user
 from contextlib import asynccontextmanager
 from app.database import engine, Base
 

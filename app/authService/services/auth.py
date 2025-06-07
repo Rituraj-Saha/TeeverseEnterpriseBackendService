@@ -5,10 +5,10 @@ from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models.user import User
-from app.schemas.user import UserCreate
-from app.schemas.blacklist import BlacklistTokenCreate
-from app.services.blacklist import add_token_to_blacklist, is_token_blacklisted
+from app.authService.models.user import User
+from app.authService.schemas.user import UserCreate
+from app.authService.schemas.blacklist import BlacklistTokenCreate
+from app.authService.services.blacklist import add_token_to_blacklist, is_token_blacklisted
 from app.config import settings
 import secrets
 

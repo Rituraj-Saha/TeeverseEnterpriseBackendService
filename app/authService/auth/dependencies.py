@@ -2,10 +2,10 @@ from fastapi import Depends, HTTPException, status
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import SessionLocal
-from app.auth.jwt import settings, is_token_blacklisted
+from app.authService.auth.jwt import settings, is_token_blacklisted
 from sqlalchemy.future import select
 from fastapi.security import OAuth2PasswordBearer
-from app.models.user import User
+from app.authService.models.user import User
 from datetime import datetime
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/login")
