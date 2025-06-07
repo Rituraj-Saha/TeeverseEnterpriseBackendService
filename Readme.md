@@ -9,6 +9,13 @@
 
 **start the env**
 
-````$env:ENVIRONMENT="development"
-uvicorn app.authService.main:app --reload```
-````
+```
+$env:ENVIRONMENT="development"
+uvicorn app.authService.main:app --reload
+```
+
+## To get folder structure:
+
+```
+tree /F /A > structure.txt
+```
