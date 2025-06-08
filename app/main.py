@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from app.database import engine, Base
 from app.adminService.admin import setup_admin
 from starlette.middleware.sessions import SessionMiddleware
+from app.authService.routes import internal
 
 
 @asynccontextmanager
@@ -23,4 +24,5 @@ app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
 print("Running in:", settings.ENVIRONMENT)
 print("Using DB:", settings.DATABASE_URL)
 app.include_router(user.router, prefix="/api/v1")
+app.include_router(internal.router)
 setup_admin(app)

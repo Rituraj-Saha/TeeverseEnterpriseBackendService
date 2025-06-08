@@ -1,8 +1,8 @@
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
-from app.authService.services.auth import get_user_by_email, verify_password
-from app.database import SessionLocal
 from sqladmin.authentication import AuthenticationBackend
+
+from app.adminService.services.auth_proxy import verify_user_via_internal_api
 
 
 class AdminAuth(AuthenticationBackend):
@@ -12,38 +12,36 @@ class AdminAuth(AuthenticationBackend):
 
     async def authenticate(self, request: Request):
         print("===> AdminAuth.authenticate() called")
-        print("Request method:", request.method)
 
         user_email = request.session.get("user_email")
         print("Session user_email:", user_email)
 
         if user_email:
-            async with SessionLocal() as db:
-                user = await get_user_by_email(db, user_email)
-                if user and user.role == "admin":
-                    return user
+            # Use internal API with dummy password (or skip password logic if you prefer)
+            result = await verify_user_via_internal_api(user_email, "__session__")
+            if result.get("success"):
+                return result  # Returning email + role for sqladmin, customize if needed
+
         return False
 
     async def login(self, request: Request):
         print("===> AdminAuth.login() called")
+
         if request.method == "POST":
             form = await request.form()
             username = form.get("username")
             password = form.get("password")
 
-            async with SessionLocal() as db:
-                user = await get_user_by_email(db, username)
-                if user:
-                    password_valid = await verify_password(password, user.password)
-                    if password_valid and user.role == "admin":
-                        request.session["user_email"] = user.email
-                        print("✅ Login success, redirecting to /admin")
-                        return RedirectResponse(url="/admin", status_code=303)
+            result = await verify_user_via_internal_api(username, password)
+
+            if result.get("success"):
+                request.session["user_email"] = result["email"]
+                print("✅ Login success, redirecting to /admin")
+                return RedirectResponse(url="/admin", status_code=303)
 
             print("❌ Login failed, redirecting to /admin/login")
             return RedirectResponse(url="/admin/login", status_code=303)
 
-        # Default to showing login page
         return RedirectResponse(url="/admin/login", status_code=303)
 
     async def logout(self, request: Request):
