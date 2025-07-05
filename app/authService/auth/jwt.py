@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from app.config import settings
-from app.authService.models.blacklist import BlacklistedToken
+from app.databaseConfigs.models.authServiceModel.blacklist import BlacklistedToken
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 

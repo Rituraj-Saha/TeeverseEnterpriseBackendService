@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Header, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
-from app.authService.services.auth import get_user_by_email, verify_password
+from app.databaseConfigs.database import get_db
+from app.authService.services.auth import verify_password
+from app.authService.auth.dependencies import get_user_by_email
 from app.config import settings
 from pydantic import BaseModel
 

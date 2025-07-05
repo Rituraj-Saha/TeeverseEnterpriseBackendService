@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     INTERNAL_SECRET_TOKEN: str
     ALGORITHM: str
     LOG_LEVEL: str = "info"
+    OTP_EXPIRE_TIME: int
 
     model_config = SettingsConfigDict(
         env_file=str(env_file_path),

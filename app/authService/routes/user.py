@@ -2,21 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException,status
 from app.authService.schemas.user import UserCreate, UserOut, UserLogin, TokenPayload
 from app.authService.services.auth import create_user, authenticate_user, create_access_token, create_refresh_token, logout_user
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import SessionLocal
+from app.databaseConfigs.database import SessionLocal
 from app.authService.auth.dependencies import get_current_user, get_admin_user
+from app.databaseConfigs.database import get_db
 from datetime import timedelta
 from app.config import settings
 from jose import jwt, JWTError
 from datetime import datetime
-from app.authService.models.user import User 
+from app.databaseConfigs.models.authServiceModel.user import User 
 from fastapi.responses import JSONResponse 
 from app.authService.schemas.user import UserOut
 
 router = APIRouter()
-
-async def get_db():
-    async with SessionLocal() as session:
-        yield session
 
 @router.post("/create-user", response_model=UserOut)
 async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -29,11 +26,11 @@ async def login_user(form_data: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(
-        data={"sub": user.email},
+        data={"sub": user.phone_number},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_refresh_token(
-        data={"sub": user.email},
+        data={"sub": user.phone_number},
         expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
     return {"access_token": access_token, "refresh_token": refresh_token}

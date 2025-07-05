@@ -1,25 +1,27 @@
 from fastapi import Depends, HTTPException, status
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import SessionLocal
+from app.databaseConfigs.database import SessionLocal
 from app.authService.auth.jwt import settings, is_token_blacklisted
 from sqlalchemy.future import select
 from fastapi.security import OAuth2PasswordBearer
-from app.authService.models.user import User
+from app.databaseConfigs.models.authServiceModel.user import User
 from datetime import datetime
+from app.authService.services.auth import get_user_by_email,get_user_by_phone
+from app.databaseConfigs.database import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/login")
 
 
-async def get_db():
-    async with SessionLocal() as session:
-        yield session
+# async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+#     result = await db.execute(select(User).where(User.email == email))
+#     user = result.scalar_one_or_none()
+#     return user
 
-
-async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    return user
+# async def get_user_by_phone(db: AsyncSession, phnone_number: str) -> User | None:
+#     result = await db.execute(select(User).where(User.phone_number == phnone_number))
+#     user = result.scalar_one_or_none()
+#     return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
     credentials_exception = HTTPException(

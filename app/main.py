@@ -2,7 +2,7 @@ from app.config import settings
 from fastapi import FastAPI
 from app.authService.routes import user
 from contextlib import asynccontextmanager
-from app.database import engine, Base
+from app.databaseConfigs.database import engine, Base
 from app.adminService.admin import setup_admin
 from starlette.middleware.sessions import SessionMiddleware
 from app.authService.routes import internal

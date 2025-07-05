@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.authService.models.user import User
+from app.databaseConfigs.models.authServiceModel.user import User
 from app.authService.schemas.user import UserCreate
 from app.authService.schemas.blacklist import BlacklistTokenCreate
 from app.authService.services.blacklist import add_token_to_blacklist, is_token_blacklisted
@@ -18,6 +18,10 @@ ALGORITHM = settings.ALGORITHM
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.email == email))
+    return result.scalars().first()
+
+async def get_user_by_phone(db: AsyncSession, phn: str) -> Optional[User]:
+    result = await db.execute(select(User).where(User.phone_number == phn))
     return result.scalars().first()
 
 

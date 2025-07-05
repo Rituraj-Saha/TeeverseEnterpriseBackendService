@@ -1,11 +1,12 @@
 from sqladmin import Admin, ModelView
-from app.authService.models.user import User
-from app.database import engine
+from app.databaseConfigs.models.authServiceModel.user import User
+from app.databaseConfigs.database import engine
 from app.adminService.auth import AdminAuth
 
 
 class UserAdmin(ModelView, model=User):
     column_list = [User.userid, User.email, User.role,User.address]
+    column_searchable_list = [User.email]
     name = "User"
     name_plural = "Users"
     icon = "fa-solid fa-user"
