@@ -21,7 +21,6 @@ class Address(BaseModel):
 class UserCreate(BaseModel):
     phone_number: str
     email: EmailStr
-    password: str
     name: str
     address: Optional[Address]
     role: Optional[RoleEnum] = RoleEnum.user
@@ -44,12 +43,12 @@ class UserOut(BaseModel):
 
 class UserLoginViaEmail(BaseModel):
     email: EmailStr
-    password: str
+    # password: str
 
 
 class UserLoginViaPhone(BaseModel):
     phone_number: str
-    password: str
+    # password: str
 
     @field_validator('phone_number')
     @classmethod
@@ -61,3 +60,7 @@ class TokenPayload(BaseModel):
 
     class Config:
         from_attributes = True
+
+class OTPVerifyRequest(BaseModel):
+    identifier: str  # email or phone
+    otp: str

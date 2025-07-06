@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, JSON, Enum
+from sqlalchemy import Column, Integer, String, JSON, Enum,DateTime
 from app.databaseConfigs.database import Base
 import enum
+from datetime import datetime
 
 class RoleEnum(str, enum.Enum):
     admin = "admin"
@@ -19,3 +20,4 @@ class User(Base):
     name = Column(String, nullable=False)
     address = Column(JSON, nullable=True)
     role = Column(Enum(RoleEnum), default="user")
+    otp_expiry = Column(DateTime, nullable=True)

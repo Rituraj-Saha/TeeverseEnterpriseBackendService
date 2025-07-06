@@ -1,4 +1,4 @@
-# app/authService/auth/dependency.py
+# app/authService/auth/dependencies.py
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,30 +8,62 @@ from datetime import datetime, timedelta
 
 from app.databaseConfigs.database import get_db
 from app.config import settings
-from app.authService.schemas.user import UserCreate, UserLoginViaEmail, UserLoginViaPhone, TokenPayload
+from app.authService.schemas.user import UserCreate, OTPVerifyRequest
 from app.authService.services import auth as auth_service
 from app.authService.auth import jwt as jwt_utils
-
 from app.databaseConfigs.models.authServiceModel.user import User
+from fastapi import Query
+from app.utils.validators import validate_and_format_phone_number
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/login")
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def register_user_dependency(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return await auth_service.create_user(user, db)
 
+async def login_user_dependency(
+    identifier: str = Query(..., description="Email or phone"),
+    db: AsyncSession = Depends(get_db)
+):
+    formatted_identifier = identifier
+    if identifier.isdigit() or identifier.startswith("+"):
+        try:
+            formatted_identifier = validate_and_format_phone_number(identifier)
+        except Exception as e:
+            print(f"Phone format error: {e}")
+            # Optionally handle invalid phone format here
 
-async def login_user_dependency(form_data: UserLoginViaEmail | UserLoginViaPhone, db: AsyncSession = Depends(get_db)):
-    if isinstance(form_data, UserLoginViaEmail):
-        user = await auth_service.authenticate_user_by_email(db, form_data.email, form_data.password)
-    elif isinstance(form_data, UserLoginViaPhone):
-        user = await auth_service.authenticate_user_by_phone(db, form_data.phone_number, form_data.password)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid login payload")
+    user = await auth_service.get_user_by_email(db, formatted_identifier) or await auth_service.get_user_by_phone(db, formatted_identifier)
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "User not found",
+                "_links": {
+                    "signup": {"href": "/api/v1/auth/register"},
+                    "prev": {"href": "/api/v1/auth/login"}
+                }
+            }
+        )
 
+    await auth_service.set_otp_for_user(user, db)
+
+    return {
+        "message": "OTP sent to your registered email/phone",
+        "_links": {
+            "verify_otp": {"href": "/api/v1/auth/verify-otp"},
+            "resend_otp": {"href": "/api/v1/auth/login"}
+        }
+    }
+
+
+async def verify_otp_dependency(payload: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
+    user = await auth_service.get_user_by_email(db, payload.identifier) or await auth_service.get_user_by_phone(db, payload.identifier)
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+    if not await auth_service.verify_otp(user, payload.otp, db):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    
     access_token = jwt_utils.create_access_token(
         data={"sub": user.email or user.phone_number},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -41,24 +73,7 @@ async def login_user_dependency(form_data: UserLoginViaEmail | UserLoginViaPhone
         expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
-
-
-async def logout_user_dependency(payload: TokenPayload, db: AsyncSession = Depends(get_db)):
-    try:
-        decoded_payload = jwt.decode(payload.token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
-        jti = decoded_payload.get("jti")
-        exp = decoded_payload.get("exp")
-        if not jti or not exp:
-            raise HTTPException(status_code=400, detail="Invalid token payload")
-
-        expires_at = datetime.utcfromtimestamp(exp)
-        await jwt_utils.blacklist_token(jti, db, expires_at)
-
-        return {"msg": "Logged out successfully"}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
@@ -69,18 +84,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
         sub = payload.get("sub")
-        jti = payload.get("jti")
-        exp = payload.get("exp")
-
-        if not sub or not jti:
+        if not sub:
             raise credentials_exception
-
-        if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
-            raise HTTPException(status_code=401, detail="Token expired")
-
-        if await jwt_utils.is_token_blacklisted(jti, db):
-            raise HTTPException(status_code=401, detail="Token has been revoked")
-
     except JWTError:
         raise credentials_exception
 
@@ -89,7 +94,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
 
     return user
-
 
 async def get_admin_user(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
