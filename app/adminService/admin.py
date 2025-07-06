@@ -5,8 +5,8 @@ from app.adminService.auth import AdminAuth
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.userid, User.email, User.role,User.address]
-    column_searchable_list = [User.email]
+    column_list = [User.userid, User.email, User.role,User.address,User.name]
+    column_searchable_list = [User.email,User.phone_number,User.name]
     name = "User"
     name_plural = "Users"
     icon = "fa-solid fa-user"

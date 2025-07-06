@@ -12,3 +12,4 @@ email-validator
 python-dotenv
 sqladmin[full]
 itsdangerous>=2.0
+phonenumbers
