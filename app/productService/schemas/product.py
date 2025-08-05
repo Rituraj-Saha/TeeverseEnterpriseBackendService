@@ -10,7 +10,7 @@ from app.productService.schemas.product_size import ProductSizeCreate, ProductSi
 
 # ----- BASE PRODUCT SCHEMA -----
 class ProductBase(BaseModel):
-    sku: str
+    sku: int
     name: str
     thumbnail: str
     images: Optional[List[str]] = None
@@ -36,7 +36,7 @@ class ProductCreate(ProductBase):
 
 # ----- UPDATE SCHEMA -----
 class ProductUpdate(BaseModel):
-    sku: Optional[str]
+    sku: Optional[int]
     name: Optional[str]
     thumbnail: Optional[str]
     images: Optional[List[str]]

@@ -10,7 +10,8 @@ from app.productService.schemas.product import (
     ProductCreate,
     ProductUpdate
 )
-
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 
 async def create_product(db: AsyncSession, payload: ProductCreate) -> Product:
     # Fetch categories
@@ -45,12 +46,29 @@ async def create_product(db: AsyncSession, payload: ProductCreate) -> Product:
 
     db.add(product)
     await db.commit()
-    await db.refresh(product)
+
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.categories),
+            selectinload(Product.sizes)
+        )
+        .where(Product.id == product.id)
+    )
+    result = await db.execute(stmt)
+    product = result.scalar_one()
     return product
 
 
 async def get_product_by_id(db: AsyncSession, product_id: str) -> Product:
-    stmt = select(Product).where(Product.id == product_id)
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.categories),
+            selectinload(Product.sizes),
+        )
+        .where(Product.id == product_id)
+    )
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
 
@@ -61,7 +79,15 @@ async def get_product_by_id(db: AsyncSession, product_id: str) -> Product:
 
 
 async def list_products(db: AsyncSession, skip: int = 0, limit: int = 10) -> List[Product]:
-    stmt = select(Product).offset(skip).limit(limit)
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.categories),
+            selectinload(Product.sizes),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -84,7 +110,16 @@ async def update_product(
             setattr(product, field, value)
 
     await db.commit()
-    await db.refresh(product)
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.categories),
+            selectinload(Product.sizes)
+        )
+        .where(Product.id == product.id)
+    )
+    result = await db.execute(stmt)
+    product = result.scalar_one()
     return product
 
 

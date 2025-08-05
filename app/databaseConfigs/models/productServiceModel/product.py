@@ -17,7 +17,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    sku = Column(String, unique=True, nullable=False)  # Stock Keeping Unit
+    sku = Column(Integer, nullable=False)  # Stock Keeping Unit
     name = Column(String, nullable=False)
     thumbnail = Column(String, nullable=False)
     images = Column(JSON, nullable=True)
