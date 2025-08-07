@@ -9,7 +9,8 @@ from app.databaseConfigs.database import engine, Base
 from app.adminService.admin import setup_admin
 from starlette.middleware.sessions import SessionMiddleware
 from app.authService.routes import internal
-
+from fastapi.staticfiles import StaticFiles
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,6 +24,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
+# Ensure the directory exists
+os.makedirs("app/static/uploads", exist_ok=True)
+
+# Mount static directory
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 print("Running in:", settings.ENVIRONMENT)
 print("Using DB:", settings.DATABASE_URL)

@@ -1,9 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List, Optional, Union
 from decimal import Decimal
 from datetime import datetime
 
-# You can import from their respective files if modular
 from app.productService.schemas.category import CategoryResponse
 from app.productService.schemas.product_size import ProductSizeCreate, ProductSizeResponse
 
@@ -12,8 +11,8 @@ from app.productService.schemas.product_size import ProductSizeCreate, ProductSi
 class ProductBase(BaseModel):
     sku: int
     name: str
-    thumbnail: str
-    images: Optional[List[str]] = None
+    # thumbnail: str
+    # images: Optional[List[str]] = None
     description: Optional[str] = None
 
     price: Decimal
@@ -21,8 +20,8 @@ class ProductBase(BaseModel):
     discount: Optional[int] = 0
     max_discount: Optional[int] = 0
 
-    gender: Optional[str] = None  # Male, Female, Unisex
-    age_group: Optional[str] = None  # Kids, Adults
+    gender: Optional[str] = None
+    age_group: Optional[str] = None
 
     max_order_count: Optional[int] = 5
     is_active: Optional[bool] = True
@@ -30,16 +29,14 @@ class ProductBase(BaseModel):
 
 # ----- CREATE SCHEMA -----
 class ProductCreate(ProductBase):
-    category_ids: List[str]  # Refer to category UUIDs
+    category_ids: List[str]
     sizes: List[ProductSizeCreate]
 
 
-# ----- UPDATE SCHEMA -----
+# ----- UPDATE SCHEMA (JSON only) -----
 class ProductUpdate(BaseModel):
     sku: Optional[int]
     name: Optional[str]
-    thumbnail: Optional[str]
-    images: Optional[List[str]]
     description: Optional[str]
 
     price: Optional[Decimal]
@@ -54,7 +51,11 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool]
 
     category_ids: Optional[List[str]]
-    sizes: Optional[List[ProductSizeCreate]]  # Allow replacing entire size list
+    sizes: Optional[List[ProductSizeCreate]]
+
+    # These are strings (URLs), not files
+    thumbnail: Optional[str]  # This should point to new URL if updated
+    images: Optional[List[str]]  # Append or replace from service layer
 
 
 # ----- RESPONSE SCHEMA -----
@@ -62,9 +63,6 @@ class ProductResponse(ProductBase):
     id: str
     created_at: datetime
     updated_at: datetime
-    name: str
-    thumbnail: str
-    images: Optional[List[str]]
     categories: List[CategoryResponse]
     sizes: List[ProductSizeResponse]
 
