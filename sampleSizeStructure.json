@@ -1,0 +1,17 @@
+[
+  {
+    "size": "M",
+    "stock": 10,
+    "additional_price": 0.0
+  },
+  {
+    "size": "L",
+    "stock": 20,
+    "additional_price": 0.0
+  },
+  {
+    "size": "XL",
+    "stock": 10,
+    "additional_price": 0.0
+  }
+]
