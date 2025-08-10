@@ -16,7 +16,7 @@ class ProductBase(BaseModel):
     description: Optional[str] = None
 
     price: Decimal
-    cost_price: Decimal
+    
     discount: Optional[int] = 0
     max_discount: Optional[int] = 0
 
@@ -31,6 +31,7 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     category_ids: List[str]
     sizes: List[ProductSizeCreate]
+    cost_price: Decimal
 
 
 # ----- UPDATE SCHEMA (JSON only) -----
@@ -65,6 +66,7 @@ class ProductResponse(ProductBase):
     updated_at: datetime
     categories: List[CategoryResponse]
     sizes: List[ProductSizeResponse]
-
+    thumbnail: str
+    images: Optional[List[str]]
     class Config:
         orm_mode = True

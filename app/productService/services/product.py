@@ -18,7 +18,7 @@ from app.productService.schemas.product import (
     ProductCreate,
     ProductUpdate
 )
-from sqlalchemy import select
+
 
 # async def create_product(db: AsyncSession, payload: ProductCreate) -> Product:
 #     # Fetch categories
@@ -66,7 +66,7 @@ from sqlalchemy import select
 #     product = result.scalar_one()
 #     return product
 
-UPLOAD_DIRECTORY = "static/uploads"  # Adjust based on your project
+UPLOAD_DIRECTORY = "app/static/uploads"  # Adjust based on your project
 
 async def save_file(file: UploadFile, subdir: str) -> str:
     os.makedirs(os.path.join(UPLOAD_DIRECTORY, subdir), exist_ok=True)
@@ -210,43 +210,100 @@ async def list_products(db: AsyncSession, skip: int = 0, limit: int = 10) -> Lis
 #     product = result.scalar_one()
 #     return product
 
+# async def update_product(
+#     db: AsyncSession,
+#     product_id: str,
+#     payload: ProductUpdate,
+#     thumbnail_file: Optional[UploadFile] = None,
+#     image_files: Optional[List[UploadFile]] = None
+# ) -> Product:
+#     product = await get_product_by_id(db, product_id)
+
+#     # Update fields from payload
+#     for field, value in payload.dict(exclude_unset=True).items():
+#         if field == "category_ids":
+#             stmt = select(Category).where(Category.id.in_(value))
+#             result = await db.execute(stmt)
+#             product.categories = result.scalars().all()
+#         elif field == "sizes":
+#             product.sizes.clear()
+#             for size_data in value:
+#                 product.sizes.append(ProductSize(**size_data.dict()))
+#         else:
+#             setattr(product, field, value)
+
+#     # If a new thumbnail is uploaded
+#     if thumbnail_file:
+#         product.thumbnail = await save_file(thumbnail_file, "thumbnails")
+
+#     # If new images are uploaded (replace old list)
+#     if image_files and len(image_files) > 0:
+#         image_paths = []
+#         for file in image_files:
+#             path = await save_file(file, "images")
+#             image_paths.append(path)
+#         product.images = image_paths
+
+#     await db.commit()
+
+#     # Reload the updated product with relationships
+#     stmt = (
+#         select(Product)
+#         .options(
+#             selectinload(Product.categories),
+#             selectinload(Product.sizes)
+#         )
+#         .where(Product.id == product.id)
+#     )
+#     result = await db.execute(stmt)
+#     product = result.scalar_one()
+#     return product
 async def update_product(
     db: AsyncSession,
     product_id: str,
     payload: ProductUpdate,
-    thumbnail_file: Optional[UploadFile] = None,
-    image_files: Optional[List[UploadFile]] = None
+    new_thumbnail_file: Optional[UploadFile] = None,
+    new_image_files: Optional[List[UploadFile]] = None
 ) -> Product:
     product = await get_product_by_id(db, product_id)
 
-    # Update fields from payload
+    # Update scalar fields
     for field, value in payload.dict(exclude_unset=True).items():
-        if field == "category_ids":
+        if field == "category_ids" and value is not None:
             stmt = select(Category).where(Category.id.in_(value))
             result = await db.execute(stmt)
-            product.categories = result.scalars().all()
-        elif field == "sizes":
+            categories = result.scalars().all()
+            if len(categories) != len(value):
+                raise HTTPException(status_code=404, detail="One or more categories not found")
+            product.categories = categories
+
+        elif field == "sizes" and value is not None:
             product.sizes.clear()
             for size_data in value:
                 product.sizes.append(ProductSize(**size_data.dict()))
-        else:
+
+        elif field not in ["thumbnail", "images"]:
             setattr(product, field, value)
 
-    # If a new thumbnail is uploaded
-    if thumbnail_file:
-        product.thumbnail = await save_file(thumbnail_file, "thumbnails")
+    # Ensure images is list before touching
+    if product.images is None:
+        product.images = []
 
-    # If new images are uploaded (replace old list)
-    if image_files and len(image_files) > 0:
-        image_paths = []
-        for file in image_files:
-            path = await save_file(file, "images")
-            image_paths.append(path)
-        product.images = image_paths
+    # Append new thumbnail
+    if new_thumbnail_file:
+        thumb_path = await save_file(new_thumbnail_file, "thumbnails")
+        if product.thumbnail:
+            product.images.append(thumb_path)
+        else:
+            product.thumbnail = thumb_path
+
+    # Append new images
+    if new_image_files:
+        img_paths = [await save_file(img, "images") for img in new_image_files]
+        product.images.extend(img_paths)
 
     await db.commit()
 
-    # Reload the updated product with relationships
     stmt = (
         select(Product)
         .options(
@@ -256,9 +313,7 @@ async def update_product(
         .where(Product.id == product.id)
     )
     result = await db.execute(stmt)
-    product = result.scalar_one()
-    return product
-
+    return result.scalar_one()
 
 async def delete_product(db: AsyncSession, product_id: str) -> None:
     product = await get_product_by_id(db, product_id)
