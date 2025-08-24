@@ -1,7 +1,5 @@
-# app/authService/auth/jwt.py
-
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.databaseConfigs.models.authServiceModel.blacklist import BlacklistedToken
@@ -27,10 +25,16 @@ def create_refresh_token(data: dict, expires_delta: timedelta):
     return jwt.encode(to_encode, settings.JWT_REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 
+def decode_access_token(token: str):
+    return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def decode_refresh_token(token: str):
+    return jwt.decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+
+
 async def is_token_blacklisted(jti: str, db: AsyncSession) -> bool:
-    result = await db.execute(
-        select(BlacklistedToken).where(BlacklistedToken.jti == jti)
-    )
+    result = await db.execute(select(BlacklistedToken).where(BlacklistedToken.jti == jti))
     token_entry = result.scalar_one_or_none()
     return token_entry is not None and token_entry.expires_at > datetime.utcnow()
 

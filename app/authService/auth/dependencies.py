@@ -1,10 +1,8 @@
-# app/authService/auth/dependencies.py
-
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request, Response, BackgroundTasks, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from jose import JWTError
+from datetime import timedelta
 
 from app.databaseConfigs.database import get_db
 from app.config import settings
@@ -12,17 +10,24 @@ from app.authService.schemas.user import UserCreate, OTPVerifyRequest
 from app.authService.services import auth as auth_service
 from app.authService.auth import jwt as jwt_utils
 from app.databaseConfigs.models.authServiceModel.user import User
-from fastapi import Query
 from app.utils.validators import validate_and_format_phone_number
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-async def register_user_dependency(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    return await auth_service.create_user(user, db)
 
+# ---------------- REGISTER ----------------
+async def register_user_dependency(
+    user: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = None  # passed from route
+):
+    return await auth_service.create_user(user, db, background_tasks)
+
+
+# ---------------- LOGIN (SEND OTP) ----------------
 async def login_user_dependency(
     identifier: str = Query(..., description="Email or phone"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     formatted_identifier = identifier
     if identifier.isdigit() or identifier.startswith("+"):
@@ -30,9 +35,9 @@ async def login_user_dependency(
             formatted_identifier = validate_and_format_phone_number(identifier)
         except Exception as e:
             print(f"Phone format error: {e}")
-            # Optionally handle invalid phone format here
 
-    user = await auth_service.get_user_by_email(db, formatted_identifier) or await auth_service.get_user_by_phone(db, formatted_identifier)
+    user = await auth_service.get_user_by_email(db, formatted_identifier) \
+        or await auth_service.get_user_by_phone(db, formatted_identifier)
 
     if not user:
         raise HTTPException(
@@ -57,45 +62,86 @@ async def login_user_dependency(
     }
 
 
-async def verify_otp_dependency(payload: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
-    user = await auth_service.get_user_by_email(db, payload.identifier) or await auth_service.get_user_by_phone(db, payload.identifier)
+# ---------------- VERIFY OTP ----------------
+async def verify_otp_dependency(
+    payload: OTPVerifyRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await auth_service.get_user_by_email(db, payload.identifier) \
+        or await auth_service.get_user_by_phone(db, payload.identifier)
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
+
     if not await auth_service.verify_otp(user, payload.otp, db):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-    
+
     access_token = jwt_utils.create_access_token(
         data={"sub": user.email or user.phone_number},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = jwt_utils.create_refresh_token(
         data={"sub": user.email or user.phone_number},
-        expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
     )
 
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    # Send refresh token as HTTP-only cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+# ---------------- CURRENT USER ----------------
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt_utils.decode_access_token(token)
         sub = payload.get("sub")
         if not sub:
+            raise credentials_exception
+        jti = payload.get("jti")
+        if await jwt_utils.is_token_blacklisted(jti, db):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = await auth_service.get_user_by_email(db, sub) or await auth_service.get_user_by_phone(db, sub)
+    user = await auth_service.get_user_by_email(db, sub) \
+        or await auth_service.get_user_by_phone(db, sub)
     if not user:
         raise credentials_exception
 
     return user
 
+
+# ---------------- ADMIN CHECK ----------------
 async def get_admin_user(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
+
+
+# ---------------- REFRESH TOKEN ----------------
+async def get_refresh_token_user(request: Request):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    return await auth_service.validate_refresh_token(refresh_token)
+
+
+# ---------------- DEPENDENCY FOR DB ----------------
+def get_db_dependency():
+    return get_db()

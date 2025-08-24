@@ -10,6 +10,7 @@ from app.adminService.admin import setup_admin
 from starlette.middleware.sessions import SessionMiddleware
 from app.authService.routes import internal
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 import os
 
 @asynccontextmanager
@@ -23,7 +24,17 @@ async def lifespan(app: FastAPI):
     # Optionally, add any shutdown logic here
 
 app = FastAPI(lifespan=lifespan)
+origins = [
+    "http://localhost:5173",   # React local dev 
+]
 app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Ensure the directory exists
 os.makedirs("app/static/uploads", exist_ok=True)
 
