@@ -4,6 +4,7 @@ from app.authService.routes import user
 from app.productService.routes import product
 from app.productService.routes import category
 from app.productService.routes import product_size
+from app.orderService.cartService.routes import cartRoute
 from contextlib import asynccontextmanager
 from app.databaseConfigs.database import engine, Base
 from app.adminService.admin import setup_admin
@@ -48,4 +49,5 @@ app.include_router(product.router, prefix="/api/v1")
 app.include_router(category.router, prefix="/api/v1")
 app.include_router(product_size.router, prefix="/api/v1")
 app.include_router(internal.router)
+app.include_router(cartRoute.router,prefix="/api/v1")
 setup_admin(app)
