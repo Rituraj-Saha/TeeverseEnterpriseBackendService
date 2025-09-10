@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from app.databaseConfigs.database import get_db
 from app.config import settings
-from app.authService.schemas.user import UserCreate, OTPVerifyRequest
+from app.authService.schemas.user import UserCreate, OTPVerifyRequest, Address,AddressAddRequest,AddressDeleteRequest,AddressUpdateRequest
 from app.authService.services import auth as auth_service
 from app.authService.auth import jwt as jwt_utils
 from app.databaseConfigs.models.authServiceModel.user import User
@@ -145,3 +145,41 @@ async def get_refresh_token_user(request: Request):
 # ---------------- DEPENDENCY FOR DB ----------------
 def get_db_dependency():
     return get_db()
+
+
+# ADD
+async def add_address_dependency(
+    payload: AddressAddRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    print("Address Payload: ",payload)
+    return await auth_service.add_address(current_user, payload.dict(), db)
+
+# UPDATE
+async def update_address_dependency(
+    payload: AddressUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    updated_addresses = await auth_service.update_address(current_user, payload.dict(), db)
+    if not updated_addresses:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return updated_addresses
+
+# DELETE
+async def delete_address_dependency(
+    payload: AddressDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    updated_addresses = await auth_service.delete_address(current_user, payload.id, db)
+    if not updated_addresses:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return updated_addresses
+
+# GET ALL ADDRESSES
+async def get_addresses_dependency(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user.address or []

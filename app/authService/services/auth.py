@@ -166,3 +166,70 @@ async def reset_otp_after_expiry(user_id: int):
             await db.commit()
             print(f"OTP expired for user {user.email or user.phone_number}")
 
+async def add_address(user: User, payload: dict, db: AsyncSession):
+    # Ensure addresses is a list
+    addresses = user.address or []
+
+    # Ensure payload has receiverPhoneNumber
+    if not payload.get("receiverPhoneNumber"):
+        payload["receiverPhoneNumber"] = user.phone_number
+
+    # Auto-generate ID
+    new_id = max([a.get("id", 0) for a in addresses], default=0) + 1
+    payload["id"] = new_id
+
+    # Add new address
+    updated_addresses = addresses + [payload]
+
+    # Reassign so SQLAlchemy marks column as dirty
+    user.address = updated_addresses
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return user.address
+
+async def update_address(user: User, payload: dict, db: AsyncSession):
+    addresses = user.address or []
+
+    updated = False
+    new_addresses = []
+    for addr in addresses:
+        if addr["id"] == payload["id"]:
+            # merge updates
+            updated_address = {**addr, **payload}
+            new_addresses.append(updated_address)
+            updated = True
+        else:
+            new_addresses.append(addr)
+
+    if not updated:
+        raise ValueError("Address not found")
+
+    # reassign list so SQLAlchemy persists
+    user.address = new_addresses
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return user.address
+
+
+async def delete_address(user: User, address_id: int, db: AsyncSession):
+    addresses = user.address or []
+
+    new_addresses = [addr for addr in addresses if addr["id"] != address_id]
+
+    if len(new_addresses) == len(addresses):
+        raise ValueError("Address not found")
+
+    # reassign list so SQLAlchemy persists
+    user.address = new_addresses
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return user.address

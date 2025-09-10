@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, Header,BackgroundTasks
 from app.authService.auth import dependencies as auth_dependency
 from app.authService.services import auth as auth_service
-from app.authService.schemas.user import UserCreate, UserOut, OTPVerifyRequest
+from app.authService.schemas.user import UserCreate, UserOut, OTPVerifyRequest, AddressUpdateRequest,AddressDeleteRequest,AddressAddRequest
 from app.databaseConfigs.models.authServiceModel.user import User
 from app.authService.auth import jwt as jwt_utils
 from datetime import timedelta
@@ -60,3 +60,19 @@ async def logout(
     await auth_service.logout_user(token, db)
     response.delete_cookie("refresh_token")
     return {"msg": "Logged out successfully"}
+
+@router.post("/address/add")
+async def add_address(payload: AddressAddRequest, result=Depends(auth_dependency.add_address_dependency)):
+    return {"message": "Address added successfully", "addresses": result}
+
+@router.put("/address/update")
+async def update_address(payload: AddressUpdateRequest, result=Depends(auth_dependency.update_address_dependency)):
+    return {"message": "Address updated successfully", "addresses": result}
+
+@router.delete("/address/delete")
+async def delete_address(payload: AddressDeleteRequest, result=Depends(auth_dependency.delete_address_dependency)):
+    return {"message": "Address deleted successfully", "addresses": result}
+
+@router.get("/address/list")
+async def list_addresses(result=Depends(auth_dependency.get_addresses_dependency)):
+    return {"addresses": result}
