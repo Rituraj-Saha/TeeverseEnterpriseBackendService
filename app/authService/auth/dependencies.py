@@ -173,9 +173,14 @@ async def delete_address_dependency(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    updated_addresses = await auth_service.delete_address(current_user, payload.id, db)
+    try:
+        updated_addresses = await auth_service.delete_address(current_user, payload.id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
     if not updated_addresses:
         raise HTTPException(status_code=404, detail="Address not found")
+
     return updated_addresses
 
 # GET ALL ADDRESSES
